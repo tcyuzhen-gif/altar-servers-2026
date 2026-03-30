@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>辅祭团 2026年出勤统计</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "PingFang SC","Microsoft YaHei",sans-serif; background: #f7f9fc; padding: 20px; }
+  .header { background: #1F3864; border-radius: 12px; padding: 20px 28px; color: white; margin-bottom: 20px; }
+  .header h1 { font-size: 20px; margin-bottom: 4px; }
+  .header p  { font-size: 13px; opacity: .8; }
+  .cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 20px; }
+  .card { background: white; border-radius: 10px; padding: 16px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .card-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+  .card-value { font-size: 24px; font-weight: bold; }
+  .card-sub   { font-size: 11px; color: #aaa; margin-top: 2px; }
+  .section { background: white; border-radius: 12px; padding: 20px 24px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 16px; }
+  .section h2 { font-size: 16px; color: #1F3864; margin-bottom: 16px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tab { padding: 5px 16px; border-radius: 20px; border: none; cursor: pointer; font-size: 12px; background: #f0f2f5; color: #555; font-family: inherit; }
+  .tab.active { background: #1F3864; color: white; font-weight: bold; }
+  canvas { max-height: 300px; }
+  .ranking { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+  .rank-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; background: #fafafa; border: 1px solid #eee; }
+  .rank-num  { font-size: 15px; min-width: 24px; text-align: center; }
+  .rank-name { font-weight: bold; font-size: 13px; flex: 1; }
+  .dots { display: flex; gap: 4px; }
+  .dot { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; color: white; }
+  .rank-total { font-size: 13px; font-weight: bold; color: #1F3864; min-width: 28px; text-align: right; }
+  .legend { margin-top: 12px; font-size: 11px; color: #aaa; display: flex; gap: 16px; flex-wrap: wrap; }
+  .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
+  @media(max-width:600px){
+    .cards { grid-template-columns: 1fr 1fr; }
+    .ranking { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🏛️ 圣托马斯·阿奎纳天主教堂 辅祭团</h1>
+  <p>2026年 1–3月出勤统计　|　共15场弥撒（含圣灰星期三、拜苦路、棕枝主日）</p>
+</div>
+
+<div class="cards">
+  <div class="card" style="border-left:4px solid #2E75B6">
+    <div class="card-label">总场次</div>
+    <div class="card-value" style="color:#2E75B6">15 场</div>
+    <div class="card-sub">1月4场 · 2月5场 · 3月6场</div>
+  </div>
+  <div class="card" style="border-left:4px solid #70AD47">
+    <div class="card-label">成员人数</div>
+    <div class="card-value" style="color:#70AD47">18 人</div>
+    <div class="card-sub">含特殊弥撒参与者</div>
+  </div>
+  <div class="card" style="border-left:4px solid #ED7D31">
+    <div class="card-label">人均出席</div>
+    <div class="card-value" style="color:#ED7D31">3.3 场</div>
+    <div class="card-sub">出席率约 22%</div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>各成员出席次数（按总计排序）</h2>
+  <div class="tabs">
+    <button class="tab active" onclick="switchChart('stacked',this)">分月堆叠</button>
+    <button class="tab" onclick="switchChart('total',this)">总计对比</button>
+    <button class="tab" onclick="switchChart('monthly',this)">月份趋势</button>
+  </div>
+  <canvas id="mainChart"></canvas>
+</div>
+
+<div class="section">
+  <h2>出席次数排行</h2>
+  <div class="ranking" id="ranking"></div>
+  <div class="legend">
+    <span><span class="legend-dot" style="background:#2E75B6"></span>1月</span>
+    <span><span class="legend-dot" style="background:#70AD47"></span>2月</span>
+    <span><span class="legend-dot" style="background:#ED7D31"></span>3月</span>
+    <span style="margin-left:auto">圆圈数字 = 当月出席场次</span>
+  </div>
+</div>
+
+<script>
+const members = [
+  { name:"余珞晗", m1:2, m2:1, m3:3 },
+  { name:"孙志晟", m1:3, m2:0, m3:2 },
+  { name:"余皓宸", m1:1, m2:2, m3:2 },
+  { name:"黄熙悦", m1:1, m2:2, m3:2 },
+  { name:"刘杜克", m1:1, m2:2, m3:1 },
+  { name:"林楷迪", m1:1, m2:2, m3:1 },
+  { name:"陈卓恩", m1:1, m2:1, m3:1 },
+  { name:"陈巧琳", m1:1, m2:1, m3:1 },
+  { name:"陈睿恒", m1:1, m2:1, m3:1 },
+  { name:"于佳琪", m1:1, m2:1, m3:1 },
+  { name:"于佳琳", m1:1, m2:1, m3:1 },
+  { name:"柯宸纮", m1:1, m2:1, m3:1 },
+  { name:"蔡濡亦", m1:1, m2:1, m3:1 },
+  { name:"郑慎依", m1:1, m2:1, m3:1 },
+  { name:"林孟歆", m1:1, m2:1, m3:1 },
+  { name:"刘海涵", m1:1, m2:0, m3:1 },
+  { name:"孙志皓", m1:0, m2:1, m3:1 },
+  { name:"林伟杰", m1:1, m2:0, m3:1 },
+].map(d => ({ ...d, total: d.m1+d.m2+d.m3 }))
+ .sort((a,b) => b.total - a.total);
+
+const names  = members.map(d => d.name);
+const C = { m1:"#2E75B6", m2:"#70AD47", m3:"#ED7D31" };
+
+// ── Chart ──────────────────────────────────────────────────────────
+const ctx = document.getElementById('mainChart').getContext('2d');
+let chart = buildStacked();
+
+function buildStacked() {
+  return new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: names,
+      datasets: [
+        { label:'1月', data: members.map(d=>d.m1), backgroundColor: C.m1, stack:'a' },
+        { label:'2月', data: members.map(d=>d.m2), backgroundColor: C.m2, stack:'a' },
+        { label:'3月', data: members.map(d=>d.m3), backgroundColor: C.m3, stack:'a', borderRadius:{topLeft:4,topRight:4} },
+      ]
+    },
+    options: baseOpts()
+  });
+}
+
+function buildTotal() {
+  const colors = members.map(d =>
+    d.total>=5 ? '#1F3864' : d.total>=4 ? '#2E75B6' : d.total>=3 ? '#70AD47' : '#ED7D31'
+  );
+  return new Chart(ctx, {
+    type: 'bar',
+    data: { labels: names, datasets: [{ label:'总出席场次', data: members.map(d=>d.total), backgroundColor: colors, borderRadius:4 }] },
+    options: baseOpts()
+  });
+}
+
+function buildMonthly() {
+  return new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['1月（4场）','2月（5场）','3月（6场）'],
+      datasets: [{
+        label:'出席人次',
+        data: [
+          members.reduce((s,d)=>s+d.m1,0),
+          members.reduce((s,d)=>s+d.m2,0),
+          members.reduce((s,d)=>s+d.m3,0),
+        ],
+        backgroundColor: [C.m1, C.m2, C.m3],
+        borderRadius: 6
+      }]
+    },
+    options: { ...baseOpts(), scales: { y: { beginAtZero:true, title:{ display:true, text:'人次' } } } }
+  });
+}
+
+function baseOpts() {
+  return {
+    responsive: true,
+    plugins: { legend:{ position:'top' } },
+    scales: { y: { beginAtZero:true, max:8, title:{ display:true, text:'出席场次' } } }
+  };
+}
+
+function switchChart(type, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  chart.destroy();
+  if (type==='stacked')  chart = buildStacked();
+  if (type==='total')    chart = buildTotal();
+  if (type==='monthly')  chart = buildMonthly();
+}
+
+// ── Ranking ────────────────────────────────────────────────────────
+const medals = ['🥇','🥈','🥉'];
+const rankEl = document.getElementById('ranking');
+members.forEach((d, i) => {
+  const borderColor = i===0?'#FFD700':i===1?'#C0C0C0':i===2?'#CD7F32':'#eee';
+  const bgColor = i===0?'#FFF8DC':i===1?'#F5F5F5':i===2?'#FFF4E8':'#fafafa';
+  rankEl.innerHTML += `
+    <div class="rank-item" style="border-color:${borderColor};background:${bgColor}">
+      <span class="rank-num">${i<3?medals[i]:i+1}</span>
+      <span class="rank-name">${d.name}</span>
+      <div class="dots">
+        <div class="dot" style="background:${d.m1>0?C.m1:'#eee'};color:${d.m1>0?'white':'#bbb'}">${d.m1}</div>
+        <div class="dot" style="background:${d.m2>0?C.m2:'#eee'};color:${d.m2>0?'white':'#bbb'}">${d.m2}</div>
+        <div class="dot" style="background:${d.m3>0?C.m3:'#eee'};color:${d.m3>0?'white':'#bbb'}">${d.m3}</div>
+      </div>
+      <span class="rank-total">${d.total}场</span>
+    </div>`;
+});
+</script>
+
+</body>
+</html>
